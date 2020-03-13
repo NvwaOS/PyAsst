@@ -3,8 +3,7 @@ import json
 import time
 import logging
 import requests
-from typing import Union
-from bs4 import BeautifulSoup
+from typing import Union, Optional
 
 
 CHUCK_SIZE = 8192
@@ -12,7 +11,6 @@ HEADERS = {
     'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_3) AppleWebKit/537.36 (KHTML, like Gecko) '
                   'Chrome/79.0.3945.130 Safari/537.36 '
 }
-BS4_FEATURES = 'lxml'
 
 
 class Delay:
@@ -58,7 +56,7 @@ class RequestHandler:
             pass
 
     def __init__(self, session: bool = True, headers: dict = None, encoding: Union[str, list, tuple] = 'UTF-8',
-                 retry: int = 3, delay: Union[Delay, None] = None, **kwargs):
+                 retry: int = 3, delay: Optional[Delay] = None, **kwargs):
         """
         请求处理器
         :param session:  是否启用 Session 会话
@@ -77,6 +75,11 @@ class RequestHandler:
 
         self.session = requests.Session() if session else requests
 
+        self.methods = {
+            'get': self.session.get,
+            'post': self.session.post
+        }
+
         if headers is None:
             headers = HEADERS.copy()
         self.headers = headers
@@ -93,7 +96,13 @@ class RequestHandler:
             delay = self._FalseDelay_()
         self.delay = delay
 
-    def _request_(self, method, url, **kwargs) -> requests.Response:
+    def request(self, url: str, method: str, **kwargs) -> requests.Response:
+        if not method or not url:
+            raise RuntimeError('参数不完整')
+        _method = self.methods.get(method)
+        if _method is None:
+            raise RuntimeError('未知的 HTTP 请求方式：' + method)
+
         # 请求响应结果
         res = None
         # 当前重试次数
@@ -107,7 +116,7 @@ class RequestHandler:
             # 激活延迟处理器，每次重试也要计入延迟
             self.delay.action()
             # 发起请求
-            res = method(url, headers=self.headers, **kwargs)
+            res = _method(url, headers=self.headers, **kwargs)
             if res.status_code != 200:
                 # 响应状态码不为 200，则发起重试
                 continue
@@ -115,59 +124,37 @@ class RequestHandler:
         # 超过最大重试次数，则抛出异常
         raise RuntimeError('「HTTP异常」状态码：%d，请求地址：%s' % (res.status_code, url))
 
-    def _json_(self, method, url, encoding) -> Union[list, dict]:
-        res = self._request_(method, url)
-        content = self.decode(res.content, encoding, self.encodes)
-        return json.loads(content)
-
     def get(self, url: str) -> requests.Response:
-        return self._request_(self.session.get, url)
+        return self.request(url, 'get')
 
     def post(self, url: str) -> requests.Response:
-        return self._request_(self.session.post, url)
+        return self.request(url, 'post')
 
-    def html(self, url: str, encoding: Union[str, None] = None, uncomment: bool = False) -> BeautifulSoup:
-        res = self._request_(self.session.get, url)
+    def html(self, url: str, encoding: Optional[str] = None, uncomment: bool = False) -> str:
+        res = self.request(url, 'get')
         html = self.decode(res.content, encoding, self.encodes)
         if uncomment:
             html = html.replace('<!--', '').replace('-->', '')
-        return BeautifulSoup(html, features=BS4_FEATURES)
+        return html
 
-    def json(self, url: str, encoding: Union[str, None] = None) -> Union[list, dict]:
-        return self._json_(self.session.post, url, encoding)
-
-    def get_json(self, url: str, encoding: Union[str, None] = None) -> Union[list, dict]:
-        return self._json_(self.session.get, url, encoding)
-
-    def write(self, url: str, save_path: str, encoding: Union[str, None] = None):
-        res = self._request_(self.session.get, url)
+    def json(self, url: str, method: str = 'get', encoding: Optional[str] = None) -> Union[list, dict]:
+        res = self.request(url, method)
         content = self.decode(res.content, encoding, self.encodes)
+        return json.loads(content)
+
+    def download(self, url: str, save_path: str, method: str = 'get'):
         # 如果文件夹不存在，则创建
         self._makedirs_(save_path)
-        with open(save_path, 'w') as f:
-            f.write(content)
-
-    def download(self, url: str, save_path: str) -> bool:
-        with self._request_(self.session.get, url, stream=True) as res:
-            if 'Content-Length' not in res.headers:
-                return False
-            content_length = int(res.headers['Content-Length'])
-            download_length = 0
-            # 如果文件夹不存在，则创建
-            self._makedirs_(save_path)
-            with open(save_path, 'wb') as f:
-                for chuck in res.iter_content(CHUCK_SIZE):
-                    if chuck:
-                        f.write(chuck)
-                    download_length += len(chuck)
-                    if download_length >= content_length:
-                        break
-        return True
-
-
-def load_html(path: str, uncomment: bool = False) -> BeautifulSoup:
-    with open(path, 'r') as f:
-        html = f.read()
-    if uncomment:
-        html = html.replace('<!--', '').replace('-->', '')
-    return BeautifulSoup(html, features=BS4_FEATURES)
+        with open(save_path, 'wb') as f:
+            with self.request(url, method, stream=True) as res:
+                if 'Content-Length' in res.headers:
+                    content_length = int(res.headers['Content-Length'])
+                    download_length = 0
+                    for chuck in res.iter_content(CHUCK_SIZE):
+                        if chuck:
+                            f.write(chuck)
+                        download_length += len(chuck)
+                        if download_length >= content_length:
+                            break
+                else:
+                    f.write(res.content)
