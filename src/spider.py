@@ -3,6 +3,7 @@ import json
 import time
 import logging
 import requests
+from .common import StringUtil
 from typing import Union, Optional
 
 
@@ -35,19 +36,6 @@ class RequestHandler:
         dir_path = os.path.abspath(dir_path)
         if not os.path.exists(dir_path):
             os.makedirs(dir_path)
-
-    @classmethod
-    def decode(cls, content, encodes, encoding):
-        for code in encodes:
-            if code is None:
-                continue
-            try:
-                return content.decode(code)
-            except UnicodeDecodeError:
-                pass
-        if encoding is not None:
-            return content.decode(encoding, errors='ignore')
-        raise RuntimeError('无法确定内容的编码格式，已尝试的编码格式有: %s' % list(filter(bool, encodes)), content)
 
     class _FalseDelay_(Delay):
         """
@@ -133,14 +121,14 @@ class RequestHandler:
 
     def html(self, url: str, encoding: Optional[str] = None, uncomment: bool = False) -> str:
         res = self.request(url, 'get')
-        html = self.decode(res.content, self.encodes, encoding)
+        html = StringUtil.decode(res.content, self.encodes, encoding)
         if uncomment:
             html = html.replace('<!--', '').replace('-->', '')
         return html
 
     def json(self, url: str, method: str = 'get', encoding: Optional[str] = None) -> Union[list, dict]:
         res = self.request(url, method)
-        content = self.decode(res.content, self.encodes, encoding)
+        content = StringUtil.decode(res.content, self.encodes, encoding)
         return json.loads(content)
 
     def download(self, url: str, save_path: str, method: str = 'get'):
