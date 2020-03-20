@@ -3,12 +3,16 @@ from . import env
 
 PAUSE = {
     'windows': 'PAUSE',
-    'macos': None
+    'macos': None,
+    'linux': None,
+    'unix': None
 }
 
 CLEAR = {
     'windows': 'CLS',
-    'macos': 'clear'
+    'macos': 'clear',
+    'linux': 'clear',
+    'unix': 'clear'
 }
 
 
