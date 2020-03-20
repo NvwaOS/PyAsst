@@ -66,7 +66,9 @@ class RequestHandler:
 
         self.methods = {
             'get': self.session.get,
-            'post': self.session.post
+            'post': self.session.post,
+            'put': self.session.put,
+            'delete': self.session.delete
         }
 
         if headers is None:
