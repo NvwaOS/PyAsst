@@ -1,9 +1,10 @@
 import os
+from typing import Union
 
 
 class StringUtil:
     @classmethod
-    def decode(cls, content: bytes, encodes: str, encoding: str) -> str:
+    def decode(cls, content: bytes, encodes: Union[str, list, tuple], encoding: str) -> str:
         for code in encodes:
             if code is None:
                 continue
