@@ -1,14 +1,9 @@
-import os
-import sys
 import json
 from bs4 import BeautifulSoup
-
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from src.spider import Delay, RequestHandler
 
 
 def main():
-    from src.spider import Delay, RequestHandler
-
     proxy_pool = list()
     # 创建请求处理器
     handler = RequestHandler(

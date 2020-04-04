@@ -1,10 +1,7 @@
-import os
-import sys
 from bs4 import BeautifulSoup
+from src.spider import Delay, RequestHandler
 
 MAIN_URL = 'http://www.biquge.tv'
-
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
 def get_chapter_list(handler, book_id):
@@ -28,8 +25,6 @@ def get_content(handler, chapter):
 
 
 def main():
-    from src.spider import Delay, RequestHandler
-
     # 创建请求处理器
     handler = RequestHandler(
         # 设置 HTTP 请求头
