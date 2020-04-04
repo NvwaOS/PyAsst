@@ -3,7 +3,7 @@ import json
 import time
 import logging
 import requests
-from .common import StringUtil
+from .common import StringUtil, FileSystemUtil
 from typing import Union, Optional
 
 
@@ -30,13 +30,6 @@ class RequestHandler:
     """
     请求处理器
     """
-    @staticmethod
-    def _makedirs_(path):
-        dir_path, filename = os.path.split(path)
-        dir_path = os.path.abspath(dir_path)
-        if not os.path.exists(dir_path):
-            os.makedirs(dir_path)
-
     class _FalseDelay_(Delay):
         """
         假延迟
@@ -135,7 +128,8 @@ class RequestHandler:
 
     def download(self, url: str, save_path: str, method: str = 'get'):
         # 如果文件夹不存在，则创建
-        self._makedirs_(save_path)
+        dirpath = os.path.split(save_path)[0]
+        FileSystemUtil.make_if_doesnt_exist(dirpath)
         with open(save_path, 'wb') as f:
             with self.request(url, method, stream=True) as res:
                 if 'Content-Length' in res.headers:
