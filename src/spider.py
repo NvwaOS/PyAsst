@@ -4,7 +4,7 @@ import time
 import logging
 import requests
 from .common import StringUtil
-from typing import Union, Optional
+from typing import Any, Dict, Hashable, Optional, Union
 
 
 CHUCK_SIZE = 8192
@@ -87,12 +87,19 @@ class RequestHandler:
             delay = self._FalseDelay_()
         self.delay = delay
 
-    def request(self, url: str, method: str, **kwargs) -> requests.Response:
+    def request(self, url: str, method: str, params: Any = None, **kwargs) -> requests.Response:
         if not method or not url:
             raise RuntimeError('参数不完整')
+        method = method.lower()
         _method = self.methods.get(method)
         if _method is None:
             raise RuntimeError('未知的 HTTP 请求方式：' + method)
+
+        if params is not None:
+            if method in ['get', 'delete']:
+                kwargs['params'] = params
+            else:
+                kwargs['data'] = params
 
         # 请求响应结果
         res = None
@@ -115,29 +122,31 @@ class RequestHandler:
         # 超过最大重试次数，则抛出异常
         raise RuntimeError('「HTTP异常」状态码：%d，请求地址：%s' % (res.status_code, url))
 
-    def get(self, url: str) -> requests.Response:
-        return self.request(url, 'get')
+    def get(self, url: str, **kwargs) -> requests.Response:
+        return self.request(url, 'get', None, **kwargs)
 
-    def post(self, url: str) -> requests.Response:
-        return self.request(url, 'post')
+    def post(self, url: str, **kwargs) -> requests.Response:
+        return self.request(url, 'post', None, **kwargs)
 
-    def html(self, url: str, encoding: Optional[str] = None, uncomment: bool = False) -> str:
-        res = self.request(url, 'get')
+    def html(self, url: str, params: Any = None,
+             encoding: Optional[str] = None, uncomment: bool = False, **kwargs) -> str:
+        res = self.request(url, 'get', params, **kwargs)
         html = StringUtil.decode(res.content, self.encodes, encoding)
         if uncomment:
             html = html.replace('<!--', '').replace('-->', '')
         return html
 
-    def json(self, url: str, method: str = 'get', encoding: Optional[str] = None) -> Union[list, dict]:
-        res = self.request(url, method)
+    def json(self, url: str, method: str = 'post', params: Any = None,
+             encoding: Optional[str] = None, **kwargs) -> Union[list, Dict[Hashable, Any]]:
+        res = self.request(url, method, params, **kwargs)
         content = StringUtil.decode(res.content, self.encodes, encoding)
         return json.loads(content)
 
-    def download(self, url: str, save_path: str, method: str = 'get'):
+    def download(self, url: str, save_path: str, method: str = 'get', params: Any = None, **kwargs):
         # 如果文件夹不存在，则创建
         self._makedirs_(save_path)
         with open(save_path, 'wb') as f:
-            with self.request(url, method, stream=True) as res:
+            with self.request(url, method, params, stream=True, **kwargs) as res:
                 if 'Content-Length' in res.headers:
                     content_length = int(res.headers['Content-Length'])
                     download_length = 0
