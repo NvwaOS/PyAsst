@@ -59,8 +59,11 @@ class RequestHandler:
 
         self.methods = {
             'get': self.session.get,
+            'options': self.session.options,
+            'head': self.session.head,
             'post': self.session.post,
             'put': self.session.put,
+            'patch': self.session.patch,
             'delete': self.session.delete
         }
 
@@ -80,7 +83,7 @@ class RequestHandler:
             delay = self._FalseDelay_()
         self.delay = delay
 
-    def request(self, url: str, method: str, params: Any = None, **kwargs) -> requests.Response:
+    def request(self, url: str, method: str, **kwargs) -> requests.Response:
         if not method or not url:
             raise RuntimeError('参数不完整')
         method = method.lower()
@@ -88,11 +91,8 @@ class RequestHandler:
         if _method is None:
             raise RuntimeError('未知的 HTTP 请求方式：' + method)
 
-        if params is not None:
-            if method in ['get', 'delete']:
-                kwargs['params'] = params
-            else:
-                kwargs['data'] = params
+        if 'headers' not in kwargs:
+            kwargs['headers'] = self.headers
 
         # 请求响应结果
         res = None
@@ -107,7 +107,7 @@ class RequestHandler:
             # 激活延迟处理器，每次重试也要计入延迟
             self.delay.action()
             # 发起请求
-            res = _method(url, headers=self.headers, **kwargs)
+            res = _method(url, **kwargs)
             if res.status_code != 200:
                 # 响应状态码不为 200，则发起重试
                 continue
@@ -116,31 +116,45 @@ class RequestHandler:
         raise RuntimeError('「HTTP异常」状态码：%d，请求地址：%s' % (res.status_code, url))
 
     def get(self, url: str, **kwargs) -> requests.Response:
-        return self.request(url, 'get', None, **kwargs)
+        return self.request(url, 'get', **kwargs)
+
+    def options(self, url: str, **kwargs) -> requests.Response:
+        return self.request(url, 'options', **kwargs)
+
+    def head(self, url: str, **kwargs) -> requests.Response:
+        return self.request(url, 'head', **kwargs)
 
     def post(self, url: str, **kwargs) -> requests.Response:
-        return self.request(url, 'post', None, **kwargs)
+        return self.request(url, 'post', **kwargs)
 
-    def html(self, url: str, params: Any = None,
-             encoding: Optional[str] = None, uncomment: bool = False, **kwargs) -> str:
-        res = self.request(url, 'get', params, **kwargs)
+    def put(self, url: str, **kwargs) -> requests.Response:
+        return self.request(url, 'put', **kwargs)
+
+    def patch(self, url: str, **kwargs) -> requests.Response:
+        return self.request(url, 'patch', **kwargs)
+
+    def delete(self, url: str, **kwargs) -> requests.Response:
+        return self.request(url, 'delete', **kwargs)
+
+    def html(self, url: str, encoding: Optional[str] = None, uncomment: bool = False, **kwargs) -> str:
+        res = self.request(url, 'get', **kwargs)
         html = StringUtil.decode(res.content, self.encodes, encoding)
         if uncomment:
             html = html.replace('<!--', '').replace('-->', '')
         return html
 
-    def json(self, url: str, method: str = 'post', params: Any = None,
+    def json(self, url: str, method: str = 'post',
              encoding: Optional[str] = None, **kwargs) -> Union[list, Dict[Hashable, Any]]:
-        res = self.request(url, method, params, **kwargs)
+        res = self.request(url, method, **kwargs)
         content = StringUtil.decode(res.content, self.encodes, encoding)
         return json.loads(content)
 
-    def download(self, url: str, save_path: str, method: str = 'get', params: Any = None, **kwargs):
+    def download(self, url: str, save_path: str, method: str = 'get', **kwargs):
         # 如果文件夹不存在，则创建
         dirpath = os.path.split(save_path)[0]
         FileSystemUtil.make_if_doesnt_exist(dirpath)
         with open(save_path, 'wb') as f:
-            with self.request(url, method, params, stream=True, **kwargs) as res:
+            with self.request(url, method, stream=True, **kwargs) as res:
                 if 'Content-Length' in res.headers:
                     content_length = int(res.headers['Content-Length'])
                     download_length = 0
