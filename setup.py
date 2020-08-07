@@ -8,5 +8,5 @@ setup(
     description='PyAsst is a simple, lightweight Python framework for rapid development.',
     author='Singu',
     author_email='singu@singu.top',
-    packages=['pyasst']
+    packages=('pyasst', 'pyasst.ext')
 )

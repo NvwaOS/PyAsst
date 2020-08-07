@@ -5,7 +5,7 @@ from typing import Iterable, Dict, Callable
 try:
     from flask import Flask, request, render_template, jsonify
 except ModuleNotFoundError as E:
-    from .common import ModuleIsNotInstallError
+    from ..common import ModuleIsNotInstallError
     raise ModuleIsNotInstallError('Flask', 'pip install flask') from E
 
 
