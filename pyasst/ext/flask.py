@@ -9,7 +9,7 @@ except ModuleNotFoundError as E:
     raise ModuleIsNotInstallError('Flask', 'pip install flask') from E
 
 
-class NvwaOSFlask(Flask):
+class PyAsstFlask(Flask):
     def __init__(self, import_name: str, *args, global_config: Dict, **kwargs):
         """
         NvwaOS-Flask 拓展对象
@@ -62,13 +62,16 @@ class NvwaOSFlask(Flask):
         :param methods: HTTP 请求的方式
         :param route_options: 路由的其他参数
         """
-        local_func = self.GLOBAL_CONFIG.get('LOCALS_FUNCTION', lambda local: local)
+        # 获取 <本地环境变量构造函数>
+        local_func: Callable[[PyAsstFlask, dict], dict]
+        local_func = self.GLOBAL_CONFIG.get('LOCAL_FUNCTION', lambda app, local: local)
 
         def decorator(func):
             # 构造当前路由环境变量
             # local_func:
+            #   - app: Flask 对象
             #   - local: 默认 local 变量
-            local = local_func({
+            local = local_func(self, {
                 'url': route if route else f'/{func.__name__}',
                 'method': func.__name__,
                 'template': template if template else f'{func.__name__}.html'
@@ -99,6 +102,7 @@ class NvwaOSFlask(Flask):
         :param required: 必要参数，用于参数校验
         """
 
+        # 获取 <接口参数解析函数>
         interface_param_analysis = self.GLOBAL_CONFIG.get('INTERFACE_PARAM_ANALYSIS', jsonify)
 
         # 加载参数
