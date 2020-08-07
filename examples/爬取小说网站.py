@@ -1,5 +1,5 @@
 from bs4 import BeautifulSoup
-from src.spider import Delay, RequestHandler
+from pyasst.spider import Delay, RequestHandler
 
 MAIN_URL = 'http://www.biquge.tv'
 

@@ -1,6 +1,6 @@
 import json
 from bs4 import BeautifulSoup
-from src.spider import Delay, RequestHandler
+from pyasst.spider import Delay, RequestHandler
 
 
 def main():

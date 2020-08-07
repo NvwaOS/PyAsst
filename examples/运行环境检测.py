@@ -1,4 +1,4 @@
-from src import env
+from pyasst import env
 
 
 def main():
