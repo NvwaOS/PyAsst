@@ -1,5 +1,19 @@
 import os
+from . import env
 from typing import Union
+
+
+class ModuleIsNotInstallError(RuntimeError):
+    def __init__(self, module: str, command: str = None):
+        self.module_name = module
+        self.command = command if command is not None else f'pip install {module}'
+
+    def __str__(self):
+        return (
+            '您需要先安装 {module} 框架，使用 "{command}" 命令。'
+            if env.isChinese() else
+            'You need to install {module} module first, use "{command}" command.'
+        ).format(module=self.module_name, command=self.command)
 
 
 class StringUtil:
